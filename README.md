@@ -1,17 +1,17 @@
 ViPR
 ====
 
-This is a collection of scripts used for the analysis of RNA viruses.
-The main wrapper is vipr.py ("Viper" written in Python though :) which
-will create a makefile defining the whole pipeline and subsequently
-call make.
+This is a collection of scripts used for the analysis of RNA viruses,
+based on LoFreq. The main wrapper is vipr.py ("Viper" written in
+Python though :) which will create a makefile defining the pipeline
+setps and will subsequently call make. Some of these scripts are quite
+specific to small genomes, others you might able to reuse some of them
+for larger - e.g. bacterial - genomes.
 
-Some of these scripts are quite specific to small genomes, others you
-will able to reuse some of them for larger - e.g. bacterial - genomes.
-
-*WARNING*: this pipeline doesn't use a proper framework (but is being
-ported to ruffus at the moment), has a huge dependency list and might
-make assumptions that are not met in your setup. *Use at your own risk*.
+*WARNING: Use at your own risk*: this pipeline is not based on a
+proper pipeline framework (but is being ported to ruffus at the
+moment), uses some outdated scripts, has a huge dependency list and
+might make assumptions that are not met in your setup.
 
 Installation
 ------------
@@ -19,22 +19,26 @@ Installation
 The impatient can simply use the full path for calling the scripts in
 ./src or add that directory to their PATH variable.
 
-For a proper installation, cd into this directory and then use
-    $ python setup.py install --prefix
-for installing the scripts.
+For a proper
+installation, cd into this directory and then use
 
-For more option see
+    $ python setup.py
+    
+install --prefix for installing the scripts.
+
+For more options see
+
     $ python setup.py install -h
 
-Note, if you're using the prefix argument make sure that the
-corresponding bin directory is in PATH and the corresponding python
-library path is in PYTHONPATH.
+Note: if you're using a special prefix for installation, please make
+sure that the corresponding bin directory is in your PATH and the
+corresponding python library path is in your PYTHONPATH.
 
 
 Dependencies
 ------------
 
-A (very likely) incomplete list of dependencies to be installed:
+A (very likely) incomplete list of dependencies:
 - make
 - FastQC
 - Picard
@@ -58,7 +62,9 @@ ViPR is basically just the (Makefile based) glue for running a series
 of scripts and external programs. The wrapper script is vipr.py
 
 See
+
     $ vipr.py -h
+    
 for help.
 
 Mandatory options are:
