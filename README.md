@@ -2,15 +2,16 @@ ViPR
 ====
 
 This is a collection of scripts used for the analysis of RNA viruses.
-The main wrapper is vipr.py ("viper") which will create a makefile
-defining the whole pipeline and subsequently call make.
+The main wrapper is vipr.py ("Viper" written in Python though :) which
+will create a makefile defining the whole pipeline and subsequently
+call make.
 
 Some of these scripts are quite specific to small genomes, others you
 will able to reuse some of them for larger - e.g. bacterial - genomes.
 
-WARNING: this pipeline doesn't use a framework, has a huge dependency list
-and might make assumptions met only in our computing environment. Use at
-your own risk.
+*WARNING*: this pipeline doesn't use a proper framework (but is being
+ported to ruffus at the moment), has a huge dependency list and might
+make assumptions that are not met in your setup. *Use at your own risk*.
 
 Installation
 ------------
@@ -19,11 +20,11 @@ The impatient can simply use the full path for calling the scripts in
 ./src or add that directory to their PATH variable.
 
 For a proper installation, cd into this directory and then use
-$ python setup.py install --prefix
+    $ python setup.py install --prefix
 for installing the scripts.
 
 For more option see
-$ python setup.py install -h
+    $ python setup.py install -h
 
 Note, if you're using the prefix argument make sure that the
 corresponding bin directory is in PATH and the corresponding python
@@ -57,7 +58,7 @@ ViPR is basically just the (Makefile based) glue for running a series
 of scripts and external programs. The wrapper script is vipr.py
 
 See
-$ vipr.py -h
+    $ vipr.py -h
 for help.
 
 Mandatory options are:
@@ -65,5 +66,21 @@ Mandatory options are:
 - -1 `reads`: first fastq[.gz] file (use -2 in addition for paired end sequencing)
 - -p `PRIMER_FA`: a list of primers you used for amplification
 - -o `OUT_DIR`: the output directory in which output files will be stored
+
+
+Output
+------
+
+vipr.py produces a lot of files from coverage plots, to consensus
+sequences and primer positions, as well as SNV predictions etc in the
+specified output directory. The output directory will contain a
+README.txt file that lists the important files. In brief, these are
+
+- recal.bam: quality recalibrated mapping file with PCR duplicates removed
+- mapping-success.txt: simple mapping success stats
+- coverage.pdf: coverage plot
+- cons_masked.fa: consensus/master sequence with primer regions masked
+- final.snp: filtered, low-frequency SNV predictions
+
 
 
