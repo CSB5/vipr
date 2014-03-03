@@ -69,9 +69,10 @@ def cmdline_parser():
                       dest="min_size",
                       type="int",
                       help="Minimum region size (e.g. 40)")
-    #parser.add_option("", "--exclude",
-    #                  dest="fexclude",
-    #                  help="exclude positions files (zero-based, half-open)")
+    parser.add_option("", "--exclude",
+                      dest="fexclude",
+                      help="Optional: exclude positions files"
+                      " (zero-based, half-open; like bed without chromosome)")
     return parser
 
 
@@ -81,7 +82,7 @@ def read_exclude_pos_file(fexclude):
     """Taken from lofreq_snpcaller.py
 
     Parse file containing ranges of positions to exclude and return
-    positions as list.
+    positions as list. File format is like bed without chromosome
     """
 
     excl_pos = []
@@ -112,29 +113,34 @@ def find_coldspot_regions(pooled_snps, seq_len, min_reg_size, excl_pos):
     # otherwise math doesn't make sense
     snps_in_excl = []
     for s in pooled_snps:
+        assert s.pos < seq_len
         if s.pos in excl_pos:
             snps_in_excl.append(s)
     if len(snps_in_excl):
         LOG.warn("%d of %d snps were is in excl_pos! (pos: %s)" % (
-            len(snps_in_excl), len(pooled_snps), ','.join([str(s.pos+1) for s in snps_in_excl])))
+            len(snps_in_excl), len(pooled_snps), 
+            ','.join([str(s.pos+1) for s in snps_in_excl])))
  
-    all_snp_pos = set([s.pos for s in pooled_snps])
+    all_snp_pos = set([s.pos for s in pooled_snps if s.pos not in excl_pos])
     
     # don't count twice (my conservative version)
     # snp_prob = len(all_snp_pos)/float(seq_len)
     # or
     # count all (as told by NN)
-    snp_prob = len(pooled_snps)/(float(seq_len)-len(excl_pos))
-    LOG.warn("This ignores the fact that we can have 3 SNPs per pos. Such cases will give probs>1 and the binom_test will fail")
+    snp_prob = len(all_snp_pos)/(float(seq_len)-len(excl_pos))
+    # FIXME This ignores the fact that we can have 3 SNPs per pos. Such cases will give probs>1 and the binom_test will fail
     #LOG.warn("snp_prob = %f" % snp_prob)
 
     coldspot_regions = []
     cur_region_start = 0
 
     # keep a list of positions where we stop and look back at the
-    # stretch of SNP void regions. Those stops include primer peaks
-    stop_pos = excl_pos
+    # stretch of SNP void regions. Those stops include excl_pos, which
+    # only works because they are a range and can therefore never be a
+    # coldspot on their own.
+    stop_pos = [p for p in excl_pos if p<seq_len]
     stop_pos.extend(all_snp_pos)
+    stop_pos = set(sorted(stop_pos))
     for cur_snp_pos in sorted(stop_pos):
         diff = cur_snp_pos - cur_region_start
         if diff >= min_reg_size:
@@ -171,8 +177,9 @@ def find_coldspot_regions(pooled_snps, seq_len, min_reg_size, excl_pos):
             print "coldspot region %d-%d (length %d): bonferroni corrected pvalue = %g (uncorrected = %g)" % (
                 region_start, region_end, size, pvalue * bonf_fac, pvalue)
         else:
-            LOG.info("non-significant coldspot region %d-%d (length %d): bonferroni corrected pvalue = %g (uncorrected = %g)" % (
-                region_start, region_end, size, pvalue * bonf_fac, pvalue))
+            LOG.info("non-significant coldspot region %d-%d (length %d):"
+                     " bonferroni corrected pvalue = %g (uncorrected = %g)" % (
+                         region_start, region_end, size, pvalue * bonf_fac, pvalue))
 
 
 def main():
@@ -193,18 +200,21 @@ def main():
     if opts.debug:
         LOG.setLevel(logging.DEBUG)
 
-    for (required_opt, opt_descr) in [(opts.seq_len, "sequence length"),
-                                      #(opts.fexclude, "exclude positions file"),
-                                      (opts.min_size, "minimum region size"),
-                                      ]:
+    for (required_opt, opt_descr) in [
+            (opts.seq_len, "sequence length"),
+            (opts.min_size, "minimum region size"),
+            ]:
         if not required_opt:
             LOG.fatal("Missing %s argument" % opt_descr)
             sys.exit(1)
  
-    LOG.info("Init sig-level=%f; min region size = %d" % (SIG_LEVEL, opts.min_size))
- 
-    #excl_pos = read_exclude_pos_file(opts.fexclude)
-    #LOG.info("Excluding %d positions" % len(excl_pos))
+    LOG.info("Init sig-level=%f; min region size = %d" % (
+        SIG_LEVEL, opts.min_size))
+
+    excl_pos = []
+    if opts.fexclude:
+        excl_pos = read_exclude_pos_file(opts.fexclude)
+        LOG.info("Excluding %d positions" % len(excl_pos))
 
     snps = []
     for snp_file in snp_files:
@@ -212,7 +222,7 @@ def main():
         snps.extend(more_snps)
         LOG.info("Parsed %d SNPs from %s" % (len(more_snps), snp_file))
         
-    find_coldspot_regions(snps, opts.seq_len, opts.min_size, [])
+    find_coldspot_regions(snps, opts.seq_len, opts.min_size, excl_pos)
     
     
 if __name__ == "__main__":
