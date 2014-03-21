@@ -69,27 +69,59 @@ def cmdline_parser():
                       dest="seq_len",
                       type="int",
                       help="Sequence length")
+    parser.add_option("", "--exclude",
+                      dest="fexclude",
+                      help="Optional: exclude positions files"
+                      " (zero-based, half-open; like bed without chromosome)")
     return parser
 
 
+def read_exclude_pos_file(fexclude):
+    """Taken from lofreq_snpcaller.py
 
-def find_hotspot_windows(snps, seq_len, win_size, step_size):
-    """FIXME
+    Parse file containing ranges of positions to exclude and return
+    positions as list. File format is like bed without chromosome
     """
 
-    
-    bonf_fac = seq_len/float(win_size)
-    snp_prob = len(snps)/float(seq_len)
+    excl_pos = []
+    fhandle = open(fexclude, 'r')
+    for line in fhandle:
+        if line.startswith('#'):
+            continue
+        if len(line.strip()) == 0:
+            continue
 
-    LOG.info("Using a window size of %d with a step size of %d. SNP prob is %g" % (
-            win_size, step_size, snp_prob))
+        start = int(line.split()[0])
+        end = int(line.split()[1])
+        # ignore the rest
+
+        assert start < end, ("Invalid position found in %s" % fexclude)
+
+        excl_pos.extend(range(start, end))
+    fhandle.close()
+
+    return excl_pos
+
+
+
+def find_hotspot_windows(snps, seq_len, win_size, step_size, excl_pos):
+    """FIXME
+    """
+    
+    bonf_fac = (seq_len-len(excl_pos))/float(win_size)
+    snp_prob = len(snps)/float(seq_len-len(excl_pos))
+
+    LOG.info("Using a window size of %d with a step size of %d."
+             " SNP prob is %g" % (win_size, step_size, snp_prob))
     
     curpos = 0
     #for win_start in range(0, seq_len, win_size):
     while curpos < seq_len-win_size:
         win_start = curpos
         num_snps_in_win = len([s for s in snps
-                               if s.pos>=win_start and s.pos<=(win_start+win_size)])
+                               if s.pos>=win_start 
+                               and s.pos<=(win_start+win_size) 
+                               and s.pos not in excl_pos])
         if num_snps_in_win > 0:
             #print win_start, win_start+win_size, num_snps_in_win
 
@@ -102,14 +134,16 @@ def find_hotspot_windows(snps, seq_len, win_size, step_size):
             try:
                 pvalue = binom_test(num_snps_in_win, win_size, snp_prob)
             except ValueError:
-                LOG.fatal("The following failed: binom_test(num_snps_in_win=%d, win_size=%d, snp_prob=%d)" % (
+                LOG.fatal("The following failed: binom_test(num_snps_in_win=%d,"
+                          " win_size=%d, snp_prob=%d)" % (
                     num_snps_in_win, win_size, snp_prob))
                 raise
             #LOG.warn("DEBUG: window %d-%d has %d SNPs which translates into a raw pvalue of %g" % (
             #        win_start, win_start+win_size, num_snps_in_win, pvalue))
             if pvalue * bonf_fac <= SIG_LEVEL:
                 print "window %d-%d has %d SNPs which translates into a bonferroni corrected pvalue of %g" % (
-                    win_start, win_start+win_size, num_snps_in_win, pvalue * bonf_fac)
+                    win_start, win_start+win_size, 
+                    num_snps_in_win, pvalue * bonf_fac)
                 
         curpos += step_size
 
@@ -140,10 +174,16 @@ def main():
             LOG.fatal("Missing %s argument" % opt_descr)
             sys.exit(1)
 
+    excl_pos = []
+    if opts.fexclude:
+        excl_pos = read_exclude_pos_file(opts.fexclude)
+        LOG.info("Excluding %d positions" % len(excl_pos))
+            
     snps = snp.parse_snp_file(opts.snp_file)
     LOG.info("Parsed %d SNPs from %s" % (len(snps), opts.snp_file))
 
-    find_hotspot_windows(snps, opts.seq_len, opts.win_size, opts.step_size)
+    find_hotspot_windows(snps, opts.seq_len, opts.win_size, 
+                         opts.step_size, excl_pos)
     
     
 if __name__ == "__main__":
