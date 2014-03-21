@@ -117,7 +117,7 @@ def find_coldspot_regions(pooled_snps, seq_len, min_reg_size, excl_pos):
         if s.pos in excl_pos:
             snps_in_excl.append(s)
     if len(snps_in_excl):
-        LOG.warn("%d of %d snps were is in excl_pos! (pos: %s)" % (
+        LOG.warn("%d of %d snps were in excl_pos (pos: %s)" % (
             len(snps_in_excl), len(pooled_snps), 
             ','.join([str(s.pos+1) for s in snps_in_excl])))
  
@@ -126,9 +126,10 @@ def find_coldspot_regions(pooled_snps, seq_len, min_reg_size, excl_pos):
     # don't count twice (my conservative version)
     # snp_prob = len(all_snp_pos)/float(seq_len)
     # or
-    # count all (as told by NN)
+    # count all (as told by NN): len([s.pos for s in pooled_snps if s.pos not in excl_pos])
     snp_prob = len(all_snp_pos)/(float(seq_len)-len(excl_pos))
-    # FIXME This ignores the fact that we can have 3 SNPs per pos. Such cases will give probs>1 and the binom_test will fail
+    # FIXME This ignores the fact that we can have 3 SNPs per pos.
+    # Such cases will give probs>1 and the binom_test will fail
     #LOG.warn("snp_prob = %f" % snp_prob)
 
     coldspot_regions = []
